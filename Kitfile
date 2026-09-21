@@ -1,0 +1,27 @@
+manifestVersion: v1.0.0
+package:
+  name: mios-micro
+  version: 1.5b
+  description: "MiOS-Micro 1.5B resident model, 4-pillar SFT dataset, and runtime tools"
+  license: Apache-2.0
+  authors:
+    - "MiOS Core Architecture Team <dev@mios.org>"
+
+model:
+  name: mios-micro-1.5b
+  path: ./models/mios-micro-1.5b-q4_k_m.gguf
+  framework: llama.cpp
+  format: GGUF
+  parameters: 1.54B
+  license: Apache-2.0
+  description: "Sub-250ms quantized resident model for system triage and CLI synthesis"
+
+datasets:
+  - name: mios-micro-sft
+    path: ./data/mios-micro-sft.jsonl
+    description: "4-Pillar supervised fine-tuning dataset (CLI, log triage, intent routing, tools)"
+    license: Apache-2.0
+
+code:
+  - path: ./src
+    description: "Dataset synthesis, training harness, GGUF converter, and eval suite"
