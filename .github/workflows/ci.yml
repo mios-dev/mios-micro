@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+
+      - name: Lint with Ruff
+        run: |
+          ruff check src/
+
+      - name: Validate 4-Pillar Dataset Generation
+        run: |
+          python -m src.mios_micro.dataset --count 50 --out /tmp/test-sft.jsonl --stats
+          [ -s /tmp/test-sft.jsonl ] || exit 1
+
+      - name: Validate Dry-Run Training Pipeline
+        run: |
+          python -m src.mios_micro.train --dataset /tmp/test-sft.jsonl --dry-run

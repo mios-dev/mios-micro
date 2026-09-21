@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mios-micro"
+version = "0.1.0"
+description = "Dedicated resident miniature model (~1.5B) and OCI artifact pipeline for MiOS"
+readme = "README.md"
+authors = [
+    { name = "MiOS Core Team", email = "dev@mios.org" }
+]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.2.0",
+    "transformers>=4.40.0",
+    "peft>=0.10.0",
+    "trl>=0.8.0",
+    "datasets>=2.18.0",
+    "accelerate>=0.28.0",
+    "bitsandbytes>=0.43.0; platform_system != 'Darwin'",
+    "pydantic>=2.6.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+    "black>=24.0.0",
+]
+
+[project.scripts]
+mios-micro-dataset = "mios_micro.dataset:main"
+mios-micro-train = "mios_micro.train:main"
+mios-micro-convert = "mios_micro.convert:main"
+mios-micro-eval = "mios_micro.eval:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
