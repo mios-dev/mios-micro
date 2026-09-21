@@ -50,3 +50,22 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Set up ORAS CLI
+        uses: oras-project/setup-oras@v1
+
+      - name: Log in to GHCR via ORAS
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Package & Push CNCF ModelPack Artifact
+        run: |
+          mkdir -p ./data ./models
+          python3 -m src.mios_micro.dataset --count 50 --out ./data/mios-micro-sft.jsonl
+          python3 -m src.mios_micro.package --model ./models/mios-micro-1.5b-q4_k_m.gguf --dataset ./data/mios-micro-sft.jsonl --out ./modelpack-manifest.json
+          if [ -f ./models/mios-micro-1.5b-q4_k_m.gguf ]; then
+            oras push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:1.5b-artifact" \
+              --artifact-type "application/vnd.cncf.model.manifest.v1+json" \
+              ./models/mios-micro-1.5b-q4_k_m.gguf:application/vnd.cncf.model.weight.v1.raw \
+              ./data/mios-micro-sft.jsonl:application/vnd.cncf.dataset.v1
+          fi
