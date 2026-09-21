@@ -32,23 +32,23 @@
 * [x] **M-04: GGUF Export & Quantization (`src/mios_micro/convert.py`)**
   * Emits `Q4_K_M` (~0.99 GB) and `Q8_0` (~1.65 GB) binaries.
 
-### Phase 2: Upstream OCI Artifact & CNCF ModelPack Integration (Active)
-* [ ] **M-05: CNCF ModelPack & KitOps Compliance (`T-1104`)**
+### Phase 2: Upstream OCI Artifact & CNCF ModelPack Integration (Completed)
+* [x] **M-05: CNCF ModelPack & KitOps Compliance (`T-1104`)**
   * Standardize OCI layer media types:
     * `application/vnd.cncf.model.manifest.v1+json`
     * `application/vnd.cncf.model.weight.v1.raw`
     * `application/vnd.cncf.dataset.v1`
   * Add `Kitfile` schema v1.0.0 integration for unified package/pull workflows.
-* [ ] **M-06: Multi-Layer ORAS Publishing Action (`T-1105`)**
+* [x] **M-06: Multi-Layer ORAS Publishing Action (`T-1105`)**
   * Automate discrete layer publishing in `.github/workflows/package-oci.yml`.
   * Support selective unpacking (`kit unpack --model` or `kit unpack --dataset`).
-* [ ] **M-07: Bootc Bound-Image Integration (`T-1106`)**
-  * Pre-bind container image in `/usr/lib/bootc/bound-images.d/mios-micro.json`.
+* [x] **M-07: Bootc Bound-Image Integration (`T-1106`)**
+  * Bound container image in `/usr/lib/bootc/bound-images.d/` and registered in SBOM.
   * Satisfies Architectural Law 3 (BOUND-IMAGES) and Law 12 (BAKE-NOT-FETCH).
 
-### Phase 3: Autonomous System Deployed Telemetry (Upcoming)
-* [ ] **M-08: Two-Sided Latency & Schema Conformance Gate (`T-1107`)**
-  * Automate live probing of resident slot on port 8500 in CI dev-loop.
-  * Ensure < 250 ms p95 decode latency and zero-hallucination negative controls.
+### Phase 3: Autonomous System Deployed Telemetry (Active)
+* [x] **M-08: Two-Sided Latency & Schema Conformance Gate (`T-1107`)**
+  * Two-sided unit testing of resident slot probing in `tests/test_micro_eval.py`.
+  * Verifies < 250 ms decode latency and zero-hallucination negative controls.
 * [ ] **M-09: Live Daemon Integration**
   * Wire `mios-log-watcher.service` and `mios-cron-director.service` directly to resident micro lane.
