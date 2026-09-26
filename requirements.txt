@@ -8,4 +8,4 @@ bitsandbytes>=0.43.0; platform_system != 'Darwin'
 pydantic>=2.6.0
 requests>=2.31.0
 pytest>=8.0.0
-ruff>=0.3.0
+ruff==0.16.9

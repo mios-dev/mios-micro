@@ -26,8 +26,7 @@ class TestMicroDataset(unittest.TestCase):
 
         # Write to disk and verify JSONL structure
         with open(self.out_file, "w", encoding="utf-8") as f:
-            for s in examples:
-                f.write(json.dumps(s, ensure_ascii=False) + "\n")
+            f.writelines(json.dumps(s, ensure_ascii=False) + "\n" for s in examples)
         self.assertTrue(self.out_file.exists())
 
         lines = self.out_file.read_text(encoding="utf-8").strip().split("\n")
