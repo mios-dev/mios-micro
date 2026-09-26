@@ -10,8 +10,8 @@ import argparse
 import json
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 
 def call_chat_completion(
@@ -66,7 +66,7 @@ def run_eval(endpoint: str, model: str) -> dict:
             print(f"  [+] Positive Control PASSED in {elapsed}ms: {parsed.get('severity')} - {parsed.get('root_cause')}")
         else:
             print(f"  [-] Positive Control FAILED: missing required keys in {parsed}")
-    except Exception as e:
+    except (OSError, ValueError, LookupError, AttributeError, TypeError) as e:
         print(f"  [-] Positive Control EXCEPTION: {e}")
 
     # 2. Negative Control: Invalid prompt must not fabricate non-existent system tools
@@ -87,7 +87,7 @@ def run_eval(endpoint: str, model: str) -> dict:
             print(f"  [+] Negative Control PASSED: correctly rejected unroutable request -> {parsed_neg}")
         else:
             print(f"  [-] Negative Control FAILED: falsely accepted invalid request -> {parsed_neg}")
-    except Exception as e:
+    except (OSError, ValueError, LookupError, AttributeError, TypeError) as e:
         print(f"  [-] Negative Control EXCEPTION: {e}")
 
     return results

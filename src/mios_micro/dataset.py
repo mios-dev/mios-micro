@@ -173,8 +173,7 @@ def main() -> int:
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
-        for s in samples:
-            f.write(json.dumps(s, ensure_ascii=False) + "\n")
+        f.writelines(json.dumps(s, ensure_ascii=False) + "\n" for s in samples)
 
     print(f"[mios-micro-dataset] Generated {len(samples)} examples -> {out_path}")
     if args.stats:

@@ -12,7 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-
 CNCF_MANIFEST_TYPE = "application/vnd.oci.image.manifest.v1+json"
 CNCF_ARTIFACT_TYPE = "application/vnd.cncf.model.manifest.v1+json"
 CNCF_CONFIG_TYPE = "application/vnd.cncf.model.config.v1+json"
