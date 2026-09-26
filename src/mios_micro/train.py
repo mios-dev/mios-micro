@@ -9,7 +9,6 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
 
 
 def detect_device() -> tuple[str, bool]:
@@ -68,7 +67,7 @@ def train(
     try:
         import torch
         from datasets import load_dataset
-        from peft import LoraConfig, get_peft_model, TaskType
+        from peft import LoraConfig, TaskType
         from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
         from trl import SFTTrainer
     except ImportError as e:

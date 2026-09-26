@@ -1,7 +1,6 @@
 """Unit Tests and Two-Sided Verification Gates for mios_micro.package."""
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
