@@ -1,9 +1,13 @@
 """Unit Tests and Two-Sided Verification Gates for mios_micro.package."""
 from __future__ import annotations
 
+import os
+import re
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 from src.mios_micro import package as micro_pkg
 
@@ -73,6 +77,34 @@ class TestMicroPackage(unittest.TestCase):
         digest, size = micro_pkg.sha256_file(str(self.dummy_model))
         self.assertTrue(digest.startswith("sha256:"))
         self.assertEqual(size, len(b"GGUF_DUMMY_WEIGHTS_BINARY_BLOB"))
+
+
+class TestCreatedTimestamp(unittest.TestCase):
+    """org.opencontainers.image.created derives from SOURCE_DATE_EPOCH or build time."""
+
+    RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+    def _created(self, dummy_model: str) -> str:
+        manifest = micro_pkg.build_modelpack_manifest(dummy_model)
+        return manifest["annotations"]["org.opencontainers.image.created"]
+
+    def test_source_date_epoch_zero_is_unix_epoch(self):
+        """SOURCE_DATE_EPOCH=0 pins created to 1970-01-01T00:00:00Z."""
+        with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "0"}):
+            self.assertEqual(micro_pkg.build_created_timestamp(), "1970-01-01T00:00:00Z")
+            self.assertEqual(self._created("absent-model.gguf"), "1970-01-01T00:00:00Z")
+
+    def test_unset_source_date_epoch_uses_current_utc_time(self):
+        """Without SOURCE_DATE_EPOCH, created is a well-formed, recent UTC timestamp."""
+        env = {k: v for k, v in os.environ.items() if k != "SOURCE_DATE_EPOCH"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            before = datetime.now(tz=timezone.utc).replace(microsecond=0)
+            created = self._created("absent-model.gguf")
+            after = datetime.now(tz=timezone.utc)
+        self.assertRegex(created, self.RFC3339_UTC)
+        parsed = datetime.strptime(created, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        self.assertGreaterEqual(parsed, before)
+        self.assertLessEqual(parsed, after + timedelta(seconds=1))
 
 
 if __name__ == "__main__":

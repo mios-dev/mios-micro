@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 CNCF_MANIFEST_TYPE = "application/vnd.oci.image.manifest.v1+json"
@@ -17,6 +18,20 @@ CNCF_ARTIFACT_TYPE = "application/vnd.cncf.model.manifest.v1+json"
 CNCF_CONFIG_TYPE = "application/vnd.cncf.model.config.v1+json"
 CNCF_LAYER_WEIGHT_RAW = "application/vnd.cncf.model.weight.v1.raw"
 CNCF_LAYER_DATASET = "application/vnd.cncf.dataset.v1"
+
+
+def build_created_timestamp() -> str:
+    """Return the OCI ``image.created`` annotation value (RFC 3339, UTC, ``Z``).
+
+    Honours ``SOURCE_DATE_EPOCH`` (reproducible-builds.org) when it is set to an
+    integer; otherwise uses the current UTC build time.
+    """
+    epoch = os.environ.get("SOURCE_DATE_EPOCH", "").strip()
+    if epoch:
+        moment = datetime.fromtimestamp(int(epoch), tz=timezone.utc)
+    else:
+        moment = datetime.now(tz=timezone.utc)
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def sha256_file(path: str | Path) -> tuple[str, int]:
@@ -94,7 +109,7 @@ def build_modelpack_manifest(
         },
         "layers": layers,
         "annotations": {
-            "org.opencontainers.image.created": "2026-09-21T00:00:00Z",
+            "org.opencontainers.image.created": build_created_timestamp(),
             "org.opencontainers.image.title": "mios-micro",
             "org.opencontainers.image.version": tag,
             "org.opencontainers.image.description": description,
