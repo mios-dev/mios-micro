@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import src.mios_micro as micro_root
 from src.mios_micro import package as micro_pkg
 
 
@@ -77,6 +78,14 @@ class TestMicroPackage(unittest.TestCase):
         digest, size = micro_pkg.sha256_file(str(self.dummy_model))
         self.assertTrue(digest.startswith("sha256:"))
         self.assertEqual(size, len(b"GGUF_DUMMY_WEIGHTS_BINARY_BLOB"))
+
+
+class TestPackageExport(unittest.TestCase):
+    """The package module is part of the public mios_micro API."""
+
+    def test_package_listed_in_all(self):
+        self.assertIn("package", micro_root.__all__)
+        self.assertEqual(micro_root.__all__, sorted(micro_root.__all__))
 
 
 class TestCreatedTimestamp(unittest.TestCase):
