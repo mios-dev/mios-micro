@@ -100,7 +100,7 @@ In production MiOS images, the micro-container is registered under `/usr/lib/boo
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"   # pyproject.toml is the single dependency source
 ```
 
 ### 2. Generate Dataset

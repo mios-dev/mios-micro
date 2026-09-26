@@ -50,7 +50,7 @@ mios-micro-eval = "mios_micro.eval:main"
 where = ["src"]
 
 [tool.ruff]
-# Ruff is pinned to an exact version (pyproject dev extra, requirements.txt, CI).
+# Ruff is pinned to an exact version (pyproject dev extra and CI).
 # lint.select spells out, rule by rule, the set that pinned version enables by
 # default, so lint behaviour is explicit rather than implied by ruff's defaults.
 # Regenerate from `ruff check --show-settings` (linter.rules.enabled) when bumping the pin.
