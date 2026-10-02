@@ -1,4 +1,7 @@
-manifestVersion: v1.0.0
+# AI-hint: KitOps Kitfile (manifestVersion 1.0.0) for the mios-micro ModelKit -- the pinned upstream GGUF, the 4-pillar SFT dataset, the model and dataset cards, and the packaging code.
+# AI-related: pyproject.toml ([tool.mios-micro.package] gguf_file), Containerfile (MODEL_PATH), src/mios_micro/package.py, .github/workflows/package-oci.yml
+
+manifestVersion: "1.0.0"
 package:
   name: mios-micro
   version: 1.5b
@@ -9,19 +12,24 @@ package:
 
 model:
   name: mios-micro-1.5b
-  path: ./models/mios-micro-1.5b-q4_k_m.gguf
+  path: models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf
   framework: llama.cpp
-  format: GGUF
-  parameters: 1.54B
+  format: gguf
   license: Apache-2.0
-  description: "Sub-250ms quantized resident model for system triage and CLI synthesis"
+  description: "Qwen2.5-Coder-1.5B-Instruct Q4_K_M GGUF, pinned by revision and sha256 in pyproject.toml"
 
 datasets:
   - name: mios-micro-sft
-    path: ./data/mios-micro-sft.jsonl
-    description: "4-Pillar supervised fine-tuning dataset (CLI, log triage, intent routing, tools)"
+    path: data/mios-micro-sft.jsonl
+    description: "4-pillar supervised fine-tuning dataset (CLI, log triage, intent routing, tools)"
     license: Apache-2.0
 
+docs:
+  - path: README.md
+    description: "Model card (Hugging Face model card front matter)"
+  - path: docs/dataset-card.md
+    description: "Dataset card (Hugging Face dataset card front matter and Datasheets for Datasets sections)"
+
 code:
-  - path: ./src
-    description: "Dataset synthesis, training harness, GGUF converter, and eval suite"
+  - path: src
+    description: "Dataset synthesis, training harness, GGUF converter, ModelPack packager, and eval suite"
