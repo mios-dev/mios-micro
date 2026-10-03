@@ -1,3 +1,19 @@
+---
+license: apache-2.0
+base_model: Qwen/Qwen2.5-Coder-1.5B-Instruct
+base_model_relation: quantized
+datasets:
+  - mios-micro-sft
+library_name: gguf
+language:
+  - en
+pipeline_tag: text-generation
+tags:
+  - gguf
+  - llama.cpp
+  - modelpack
+---
+
 # MiOS-Micro (1.5B)
 
 > Dedicated resident miniature model and OCI artifact for **MiOS** — the immutable bootc/OCI Fedora agentic operating system.
@@ -80,14 +96,24 @@ MiOS-Micro is distributed as a multi-architecture **OCI Artifact** and **Bound C
 podman run -d --name mios-micro -p 8500:8500 ghcr.io/mios-dev/mios-micro:1.5b
 ```
 
-### Pulling as an OCI Model Artifact (ORAS)
+### Pulling as a CNCF ModelPack Artifact (ORAS)
+The model artifact follows [ModelPack model-spec v0.0.7](https://github.com/modelpack/model-spec):
+artifact type `application/vnd.cncf.model.manifest.v1+json`, config
+`application/vnd.cncf.model.config.v1+json`, and raw `weight`, `dataset` and `doc` layers.
+It is attached to the runtime image digest as an OCI referrer and signed with cosign (keyless).
 ```bash
-oras pull ghcr.io/mios-dev/mios-micro:1.5b-gguf
+oras discover --artifact-type application/vnd.cncf.model.manifest.v1+json ghcr.io/mios-dev/mios-micro:1.5b
+oras pull ghcr.io/mios-dev/mios-micro:1.5b-modelpack
 # Unpacks:
-#  - mios-micro-1.5b-q4_k_m.gguf
-#  - tokenizer.json
-#  - chat_template.json
+#  - qwen2.5-coder-1.5b-instruct-q4_k_m.gguf   (weight.v1.raw)
+#  - mios-micro-sft.jsonl                      (dataset.v1.raw)
+#  - README.md, dataset-card.md                (doc.v1.raw)
 ```
+
+The GGUF is the upstream `Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF` file pinned by revision and
+sha256 in `pyproject.toml` (`[tool.mios-micro.package]`). Until a fine-tuned GGUF replaces it,
+the model card declares `base_model_relation: quantized`; it becomes `finetune` at that point.
+The dataset is described in [docs/dataset-card.md](docs/dataset-card.md).
 
 ### Binding into Bootc (Architectural Law 3)
 In production MiOS images, the micro-container is registered under `/usr/lib/bootc/bound-images.d/mios-micro.json`, ensuring the model image is pulled during initial OS baking and updated atomically with host OS upgrades.

@@ -38,6 +38,9 @@ dev = [
     "pytest>=8.0.0",
     "ruff==0.16.9",
     "black>=24.0.0",
+    "jsonschema>=4.18.0",
+    "pyyaml>=6.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.scripts]
@@ -48,6 +51,18 @@ mios-micro-eval = "mios_micro.eval:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Pinned upstream GGUF for the ModelPack artifact and the runtime image.
+# Values were read from the Hugging Face API, not typed by hand:
+#   GET https://huggingface.co/api/models/<gguf_repo>              -> sha (gguf_revision)
+#   GET https://huggingface.co/api/models/<gguf_repo>/tree/<rev>   -> <gguf_file>.lfs.oid (gguf_sha256)
+# The package-oci workflow downloads <gguf_file> at <gguf_revision> and fails on a sha256 mismatch.
+[tool.mios-micro.package]
+base_model = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+gguf_repo = "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+gguf_revision = "f86cb2c1fa58255f8052cc32aeede1b7482d4361"
+gguf_file = "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+gguf_sha256 = "cc324af070c2ecbfd324a30884d2f951a7ff756aba85cb811a6ec436933bb046"
 
 [tool.ruff]
 # Ruff is pinned to an exact version (pyproject dev extra and CI).

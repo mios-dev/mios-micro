@@ -1,71 +1,198 @@
-name: Package OCI Image & Artifact
+name: Package OCI Image & ModelPack Artifact
+
+# Builds the runtime image (llama.cpp server + pinned GGUF), then attaches a
+# CNCF ModelPack v0.0.7 model artifact to the image digest as an OCI v1.1
+# referrer, signs both digests with cosign keyless, and asserts the referrer
+# is discoverable. The GGUF is pinned in pyproject.toml [tool.mios-micro.package]
+# (gguf_repo, gguf_revision, gguf_file, gguf_sha256); a sha256 mismatch fails
+# the run before anything is pushed.
 
 on:
+  push:
+    branches: [ main ]
   release:
     types: [ published ]
   workflow_dispatch:
 
+concurrency:
+  group: package-oci-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: mios-dev/mios-micro
+  ORAS_VERSION: 1.3.4
+  MODEL_ARTIFACT_TYPE: application/vnd.cncf.model.manifest.v1+json
 
 jobs:
-  build-and-push:
+  package:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      id-token: write   # cosign keyless (Fulcio via GitHub OIDC)
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install package (dev extras)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Read pinned GGUF from pyproject
+        id: pin
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'PY'
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              pkg = tomllib.load(f)["tool"]["mios-micro"]["package"]
+          for key in ("gguf_repo", "gguf_revision", "gguf_file", "gguf_sha256"):
+              value = pkg[key]
+              if not value:
+                  raise SystemExit(f"[tool.mios-micro.package].{key} is empty")
+              print(f"{key}={value}")
+          PY
+
+      - name: Download pinned GGUF
+        env:
+          GGUF_REPO: ${{ steps.pin.outputs.gguf_repo }}
+          GGUF_REVISION: ${{ steps.pin.outputs.gguf_revision }}
+          GGUF_FILE: ${{ steps.pin.outputs.gguf_file }}
+        run: |
+          mkdir -p models
+          curl -fSL --retry 3 -o "models/${GGUF_FILE}" \
+            "https://huggingface.co/${GGUF_REPO}/resolve/${GGUF_REVISION}/${GGUF_FILE}"
+
+      - name: Verify GGUF sha256 (fails on mismatch or missing file)
+        env:
+          GGUF_FILE: ${{ steps.pin.outputs.gguf_file }}
+          GGUF_SHA256: ${{ steps.pin.outputs.gguf_sha256 }}
+        run: |
+          python3 -m src.mios_micro.package verify-sha256 \
+            --file "models/${GGUF_FILE}" --sha256 "${GGUF_SHA256}"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to the Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=1.5b
-            type=raw,value=latest
-
-      - name: Build and push OCI image
-        uses: docker/build-push-action@v5
+      - name: Build and push runtime image
+        id: build
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Containerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          build-args: |
+            GGUF_FILE=${{ steps.pin.outputs.gguf_file }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:1.5b
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Set up ORAS CLI
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
+        with:
+          version: ${{ env.ORAS_VERSION }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Log in to GHCR via ORAS
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: echo "${GHCR_TOKEN}" | oras login "${REGISTRY}" -u "${GHCR_USER}" --password-stdin
 
-      - name: Package & Push CNCF ModelPack Artifact
+      - name: Build ModelPack config + manifest (subject = runtime image)
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          GGUF_FILE: ${{ steps.pin.outputs.gguf_file }}
         run: |
-          mkdir -p ./data ./models
-          python3 -m src.mios_micro.dataset --count 50 --out ./data/mios-micro-sft.jsonl
-          python3 -m src.mios_micro.package --model ./models/mios-micro-1.5b-q4_k_m.gguf --dataset ./data/mios-micro-sft.jsonl --out ./modelpack-manifest.json
-          if [ -f ./models/mios-micro-1.5b-q4_k_m.gguf ]; then
-            oras push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:1.5b-artifact" \
-              --artifact-type "application/vnd.cncf.model.manifest.v1+json" \
-              ./models/mios-micro-1.5b-q4_k_m.gguf:application/vnd.cncf.model.weight.v1.raw \
-              ./data/mios-micro-sft.jsonl:application/vnd.cncf.dataset.v1
-          fi
+          oras manifest fetch --descriptor "${REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}" > subject.json
+          python3 -m src.mios_micro.dataset --count 50 --out data/mios-micro-sft.jsonl
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            python3 -m src.mios_micro.package build \
+              --model "models/${GGUF_FILE}" \
+              --dataset data/mios-micro-sft.jsonl \
+              --doc README.md --doc docs/dataset-card.md \
+              --subject subject.json \
+              --out-dir modelpack
+
+      # `oras push` (v1.3) takes --config and --artifact-type but has no
+      # --subject flag, and `oras attach` takes a subject but no --config. The
+      # ModelPack manifest needs both, so its blobs are pushed individually and
+      # the manifest (artifactType, config mediaType
+      # application/vnd.cncf.model.config.v1+json, subject) is pushed as built.
+      - name: Push ModelPack artifact as a referrer of the runtime image
+        id: artifact
+        run: |
+          python3 - > layers.txt <<'PY'
+          import json
+          for layer in json.load(open("modelpack/manifest.json"))["layers"]:
+              print(layer["annotations"]["org.cncf.model.filepath"])
+          PY
+          while read -r path; do
+            oras blob push "${REGISTRY}/${IMAGE_NAME}" "${path}"
+          done < layers.txt
+          oras blob push "${REGISTRY}/${IMAGE_NAME}" modelpack/config.json
+          oras manifest push --media-type application/vnd.oci.image.manifest.v1+json \
+            "${REGISTRY}/${IMAGE_NAME}:1.5b-modelpack" modelpack/manifest.json
+          echo "digest=sha256:$(sha256sum modelpack/manifest.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Sign image and ModelPack artifact (cosign keyless)
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}
+        run: |
+          cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}"
+          cosign sign --yes "${REGISTRY}/${IMAGE_NAME}@${ARTIFACT_DIGEST}"
+          for digest in "${IMAGE_DIGEST}" "${ARTIFACT_DIGEST}"; do
+            cosign verify \
+              --certificate-identity "${GITHUB_SERVER_URL}/${GITHUB_WORKFLOW_REF}" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              "${REGISTRY}/${IMAGE_NAME}@${digest}" > /dev/null
+          done
+
+      - name: Assert the ModelPack artifact is a discoverable referrer
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.digest }}
+        run: |
+          oras discover --artifact-type "${MODEL_ARTIFACT_TYPE}" --format json \
+            "${REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}" > referrers.json
+          python3 - <<'PY'
+          import json, os
+          want = os.environ["ARTIFACT_DIGEST"]
+          kind = os.environ["MODEL_ARTIFACT_TYPE"]
+
+          def walk(node):
+              if isinstance(node, dict):
+                  yield node
+                  for value in node.values():
+                      yield from walk(value)
+              elif isinstance(node, list):
+                  for value in node:
+                      yield from walk(value)
+
+          found = [n for n in walk(json.load(open("referrers.json")))
+                   if n.get("digest") == want and n.get("artifactType") == kind]
+          if not found:
+              raise SystemExit(f"ModelPack artifact {want} is not a referrer of the runtime image")
+          print(f"referrer ok: {want}")
+          PY
