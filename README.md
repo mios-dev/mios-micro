@@ -131,8 +131,8 @@ pip install -e ".[dev]"   # pyproject.toml is the single dependency source
 
 ### 2. Generate Dataset
 ```bash
-# Generate 4-pillar SFT dataset from live catalog
-python3 -m mios_micro.dataset --role micro --out /tmp/mios-micro-sft.jsonl
+# Generate the 4-pillar SFT dataset from the seed lists in src/mios_micro/dataset.py
+python3 -m mios_micro.dataset --out /tmp/mios-micro-sft.jsonl
 ```
 
 ### 3. Fine-Tune Model
